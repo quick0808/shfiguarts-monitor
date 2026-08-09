@@ -2,11 +2,11 @@ name: S.H.Figuarts Monitor
 
 on:
   schedule:
-    - cron: '0 * * * *'       # 每小时第0分钟运行（UTC时间）
-  workflow_dispatch:           # 允许手动触发测试
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 permissions:
-  contents: write            # 👈 加上这行，允许推送代码
+  contents: write
 
 jobs:
   monitor:
@@ -29,7 +29,14 @@ jobs:
           QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
         run: python monitor_shf.py
 
-      - name: 提交 found_items.json（保持记忆）
+      # 👇 新增这一步：如果 found_items.json 不存在，就创建一个空的
+      - name: 确保 found_items.json 存在
+        run: |
+          if [ ! -f found_items.json ]; then
+            echo '{"ids": [], "last_updated": "'$(date -Iseconds)'"}' > found_items.json
+          fi
+
+      - name: 提交 found_items.json
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
