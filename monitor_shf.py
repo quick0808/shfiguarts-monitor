@@ -1,5 +1,5 @@
 # ============================================================
-# 位置1：文件最顶部 —— 所有 import 集中放在这里
+# 位置1：所有 import 集中放在这里
 # ============================================================
 import requests
 from bs4 import BeautifulSoup
@@ -11,22 +11,13 @@ from email.header import Header
 from datetime import datetime
 import logging
 from urllib.parse import urljoin
-import time          # 用于重试等待
+import time
 
 # ============================================================
-# 位置2：配置区域（请修改这里）
+# 位置2：配置区域
 # ============================================================
-# 监控的网站及抓取规则
+# 只监控 Moehime Japan Toys 这一个网站
 SITES = [
-    {
-        "name": "Yoyakunow",
-        "url": "https://www.yoyakunow.com/en/10-tokusatsu",
-        "item_selector": "div.product-container",
-        "name_selector": "a.product-name",
-        "link_selector": "a.product-name",
-        "id_attr": "data-id-product",
-        "keyword": "S.H.Figuarts"          # 名称中包含该关键词才抓取
-    },
     {
         "name": "Moehime Japan Toys",
         "url": "https://moehime-japantoys.com/product-category/figures/s-h-figuarts/",
@@ -34,16 +25,16 @@ SITES = [
         "name_selector": "h2.woocommerce-loop-product__title",
         "link_selector": "a.woocommerce-LoopProduct-link",
         "id_attr": "data-product_id",
-        "keyword": ""                      # 空字符串 = 抓取该分类所有商品
+        "keyword": ""                      # 空字符串 = 该分类下所有商品都是 S.H.Figuarts，不需要过滤
     }
 ]
 
-# QQ邮箱SMTP配置（SSL加密，同美股脚本）
+# QQ邮箱SMTP配置（SSL加密）
 SMTP_SERVER = "smtp.qq.com"
 SMTP_PORT = 465
-SENDER_EMAIL = os.getenv('QQ_EMAIL')      # 从环境变量读取你的QQ邮箱
-AUTH_CODE = os.getenv('QQ_AUTH_CODE')     # 从环境变量读取QQ邮箱授权码
-RECEIVER_EMAIL = "494923589@qq.com"       # 接收通知的邮箱（可改成自己的，或也用环境变量）
+SENDER_EMAIL = os.getenv('QQ_EMAIL')
+AUTH_CODE = os.getenv('QQ_AUTH_CODE')
+RECEIVER_EMAIL = "494923589@qq.com"       # 如需修改，直接改这里或改用环境变量
 
 # 本地去重记录文件
 DATA_FILE = "found_items.json"
@@ -55,10 +46,9 @@ logging.basicConfig(
 )
 
 # ============================================================
-# 位置3：函数定义
+# 位置3：函数定义（与之前完全相同）
 # ============================================================
 def load_found_items(filepath):
-    """读取已发现的商品ID集合"""
     if os.path.exists(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -67,7 +57,6 @@ def load_found_items(filepath):
 
 
 def save_found_items(filepath, ids):
-    """保存商品ID集合"""
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump({
             "ids": list(ids),
@@ -76,7 +65,6 @@ def save_found_items(filepath, ids):
 
 
 def fetch_site(site_cfg, retries=3):
-    """抓取单个网站，带重试机制（参考美股脚本）"""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
@@ -84,7 +72,6 @@ def fetch_site(site_cfg, retries=3):
         try:
             resp = requests.get(site_cfg["url"], headers=headers, timeout=15)
             resp.raise_for_status()
-            # 成功则跳出重试循环
             soup = BeautifulSoup(resp.text, 'html.parser')
             items = soup.select(site_cfg["item_selector"])
             if not items:
@@ -99,6 +86,7 @@ def fetch_site(site_cfg, retries=3):
                     continue
                 name = name_tag.get_text(strip=True)
 
+                # keyword 为空时不进行过滤，直接抓取所有商品
                 if keyword and keyword not in name.lower():
                     continue
 
@@ -133,7 +121,6 @@ def fetch_site(site_cfg, retries=3):
 
 
 def send_notification(new_items):
-    """发送邮件通知（HTML格式，与美股脚本一致）"""
     if not new_items:
         return
 
@@ -173,7 +160,6 @@ def send_notification(new_items):
 
 
 def main():
-    """主程序：抓取 → 比较 → 通知"""
     logging.info("开始检查商品更新...")
     found_ids = load_found_items(DATA_FILE)
     new_all = []
@@ -193,8 +179,5 @@ def main():
         logging.info("没有新商品")
 
 
-# ============================================================
-# 位置4：主程序入口
-# ============================================================
 if __name__ == "__main__":
     main()
